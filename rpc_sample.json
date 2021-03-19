@@ -1,11 +1,24 @@
 [
     {
         "game_name": "Valheim",
+        "title": "Valheim",
         "exe": "valheim.exe",
         "directory": "Valheim",
         "client_id": "820617882949255170",
         "large_image": "image",
         "small_image": null,
+        "details": "{game_name}をプレイ中",
         "state": null
+    },
+    {
+        "game_name": "Minecraft",
+        "title": "Minecraft (?P<version>\\d+(\\.\\d+)*\\.\\d)(?P<raw_state> - (?P<state>.+))?",
+        "exe": "javaw.exe",
+        "directory": "bin",
+        "client_id": "822434034826215435",
+        "large_image": "image",
+        "small_image": null,
+        "details": "バージョン {version}",
+        "state": "状態: {state}"
     }
 ]

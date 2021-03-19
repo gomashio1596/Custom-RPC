@@ -1,25 +1,41 @@
 import json
+import re
 import time
-from ctypes import pointer, windll, wintypes
-from typing import Optional, Tuple
+from ctypes import c_uint, create_unicode_buffer, pointer, windll, wintypes
+from typing import Any
 
 import psutil
 from pypresence import Presence
 
 
-def start(process: psutil.Process, info: dict) -> Presence:
-    print(f"ゲームが {info['game_name']} に設定されました。RPCに接続します...")
-    presence = Presence(info['client_id'])
-    presence.connect()
+def update(presence: Presence, process: psutil.Process, info: dict, *args: Any, **kwargs: Any) -> None:
+    kwargs.setdefault('game_name', info['game_name'])
+
+    def try_format(text: str):
+        result = None
+        if text is not None:
+            try:
+                result = text.format(*args, **kwargs)
+            except (IndexError, KeyError):
+                result = None
+        return result
+
     presence.update(
         pid=process.pid,
         start=process.create_time(),
         large_image=info['large_image'] or None,
         large_text=info['game_name'],
         small_image=info['small_image'] or None,
-        details=f"{info['game_name']}をプレイ中",
-        state=info['state']
+        details=try_format(info['details']),
+        state=try_format(info['state'])
     )
+
+
+def start(process: psutil.Process, info: dict, *args: Any, **kwargs: Any) -> Presence:
+    print(f"ゲームが {info['game_name']} に設定されました。RPCに接続します...")
+    presence = Presence(info['client_id'])
+    presence.connect()
+    update(presence, process, info, *args, **kwargs)
     print('接続完了')
     return presence
 
@@ -30,11 +46,33 @@ if __name__ == '__main__':
     with open('rpc.json', encoding='utf-8') as f:
         rpc = json.load(f)
 
-    def find_process() -> Optional[Tuple[psutil.Process, int]]:
+    def get_hwnd_by_pid(pid):
+        hwnd = user32.GetTopWindow(None)
+        while hwnd is not None:
+            window_pid = wintypes.DWORD()
+            user32.GetWindowThreadProcessId(hwnd, pointer(window_pid))
+            title = get_window_text(hwnd)
+            if (pid == window_pid.value
+                    and title != 'MSCTFIME UI'
+                    and title != 'Default IME'):
+                return hwnd
+            hwnd = user32.GetWindow(hwnd, c_uint(2))  # GW_HWNDNEXT
+        return None
+
+    def get_window_text(hwnd):
+        length = user32.GetWindowTextLengthW(hwnd) + 1
+        buffer = create_unicode_buffer(length)
+        user32.GetWindowTextW(hwnd, buffer, length)
+        return buffer.value
+
+    def find_process():
         for index, p in enumerate(rpc):
-            for process in psutil.process_iter(['name','exe','pid','create_time']):
-                if process.name() == p['exe'] and p['directory'] in process.exe():
-                    return process, index
+            for process in psutil.process_iter(['name', 'exe', 'pid', 'create_time']):
+                try:
+                    if re.match(p['exe'], process.name()) and p['directory'] in process.exe():
+                        return process, index
+                except psutil.AccessDenied:
+                    continue
         return None
 
     def check_foreground_process():
@@ -43,7 +81,7 @@ if __name__ == '__main__':
         user32.GetWindowThreadProcessId(hwnd, pointer(pid))
         process = psutil.Process(pid.value)
         for p in rpc:
-            if process.name() == p['exe'] and p['directory'] in process.exe():
+            if re.match(p['exe'], process.name()) and p['directory'] in process.exe():
                 return process, p
         else:
             return None
@@ -64,11 +102,37 @@ if __name__ == '__main__':
     print('ゲームの起動を待っています...')
     while True:
         process, info = get_rpc_process()
-        presence = start(process, info)
+        match = re.match(info['title'], get_window_text(get_hwnd_by_pid(process.pid)))
+        if match is not None:
+            args, kwargs = match.groups(), {k: v for k, v in match.groupdict().items() if v is not None}
+            presence = start(process, info, *args, **kwargs)
+        else:
+            args = kwargs = None
+            presence = start(process, info)
         while process.is_running():
             ret = check_foreground_process() or check_running_process()
-            if ret is not None and check_foreground_process() is not None and ret[1] != info:
+            if ret is None:
                 break
+
+            foreground = check_foreground_process()
+            current_process, current_info = ret
+            if current_process.pid != process.pid or (foreground is not None and foreground[0].pid != process.pid):
+                break
+            
+            match = re.match(current_info['title'], get_window_text(get_hwnd_by_pid(current_process.pid)))
+            if match is not None:
+                current_args, current_kwargs = (
+                    match.groups(),
+                    {k: v for k, v in match.groupdict().items() if v is not None}
+                )
+                if current_args != args or current_kwargs != kwargs:
+                    update(presence, current_process, current_info, *current_args, **current_kwargs)
+            else:
+                current_args = current_kwargs = None
+                if current_args != args or current_kwargs != kwargs:
+                    update(presence, current_process, current_info)
+            args, kwargs = current_args, current_kwargs
+                
             time.sleep(1)
         ret = check_foreground_process() or check_running_process()
         if not process.is_running() and ret is None:
