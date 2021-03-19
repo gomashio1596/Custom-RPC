@@ -15,5 +15,5 @@ Discord Rich Presenceを好きなゲームで使うためのプログラム
 |  client_id  |  文字列 (String)  |  RPCに使うDiscordのアプリケーションのCLIENT ID  |
 |  large_image  |  文字列、null (String, null)  |  RPCに大画像として表示するアセットのアセット名  |
 |  small_image  |  文字列、null (String, null)  |  RPCに小画像として表示するアセットのアセット名  |
-|  state  |  文字列、null (String, null)  |  RPCの説明文の1行目に表示するテキスト<br>titleでの正規表現のグループとgame_name変数が使える  |
+|  details  |  文字列、null (String, null)  |  RPCの説明文の1行目に表示するテキスト<br>titleでの正規表現のグループとgame_name変数が使える  |
 |  state  |  文字列、null (String, null)  |  RPCの説明文の2行目に表示するテキスト<br>titleでの正規表現のグループとgame_name変数が使える  |
