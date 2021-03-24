@@ -51,6 +51,8 @@ if __name__ == '__main__':
         while hwnd is not None:
             window_pid = wintypes.DWORD()
             user32.GetWindowThreadProcessId(hwnd, pointer(window_pid))
+            if window_pid.value == 0:
+                break
             title = get_window_text(hwnd)
             if (pid == window_pid.value
                     and title != 'MSCTFIME UI'
@@ -69,6 +71,7 @@ if __name__ == '__main__':
         for index, p in enumerate(rpc):
             for process in psutil.process_iter(['name', 'exe', 'pid', 'create_time']):
                 try:
+                    print(process.name(), process.exe())
                     if re.match(p['exe'], process.name()) and p['directory'] in process.exe():
                         return process, index
                 except psutil.AccessDenied:
@@ -102,7 +105,11 @@ if __name__ == '__main__':
     print('ゲームの起動を待っています...')
     while True:
         process, info = get_rpc_process()
-        match = re.match(info['title'], get_window_text(get_hwnd_by_pid(process.pid)))
+        hwnd = get_hwnd_by_pid(process.pid)
+        while hwnd is None:
+            time.sleep(1)
+            hwnd = get_hwnd_by_pid(process.pid)
+        match = re.match(info['title'], get_window_text(hwnd))
         if match is not None:
             args, kwargs = match.groups(), {k: v for k, v in match.groupdict().items() if v is not None}
             presence = start(process, info, *args, **kwargs)
@@ -119,7 +126,11 @@ if __name__ == '__main__':
             if current_process.pid != process.pid or (foreground is not None and foreground[0].pid != process.pid):
                 break
             
-            match = re.match(current_info['title'], get_window_text(get_hwnd_by_pid(current_process.pid)))
+            hwnd = get_hwnd_by_pid(current_process.pid)
+            while hwnd is None:
+                time.sleep(1)
+                hwnd = get_hwnd_by_pid(current_process.pid)
+            match = re.match(current_info['title'], get_window_text(hwnd))
             if match is not None:
                 current_args, current_kwargs = (
                     match.groups(),
