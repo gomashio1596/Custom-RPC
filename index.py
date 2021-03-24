@@ -71,7 +71,6 @@ if __name__ == '__main__':
         for index, p in enumerate(rpc):
             for process in psutil.process_iter(['name', 'exe', 'pid', 'create_time']):
                 try:
-                    print(process.name(), process.exe())
                     if re.match(p['exe'], process.name()) and p['directory'] in process.exe():
                         return process, index
                 except psutil.AccessDenied:
