@@ -48,11 +48,9 @@ if __name__ == '__main__':
 
     def get_hwnd_by_pid(pid):
         hwnd = user32.GetTopWindow(None)
-        while hwnd is not None:
+        while hwnd != 0:
             window_pid = wintypes.DWORD()
             user32.GetWindowThreadProcessId(hwnd, pointer(window_pid))
-            if window_pid.value == 0:
-                break
             title = get_window_text(hwnd)
             if (pid == window_pid.value
                     and title != 'MSCTFIME UI'
