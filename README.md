@@ -2,6 +2,10 @@
 Discord Rich Presenceを好きなゲームで使うためのプログラム  
 アクティブなウィンドウが優先的にRPCに接続される  
 
+# ignore.json
+文字列 (string) のリスト  
+除外するウィンドウタイトルを書く  
+
 # rpc.json
 [RPC Info](#RPC-Info) のリスト
 

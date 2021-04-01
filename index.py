@@ -43,6 +43,9 @@ def start(process: psutil.Process, info: dict, *args: Any, **kwargs: Any) -> Pre
 if __name__ == '__main__':
     user32 = windll.user32
 
+    with open('ignore.json', encoding='utf-8') as f:
+        ignore = json.load(f)
+
     with open('rpc.json', encoding='utf-8') as f:
         rpc = json.load(f)
 
@@ -53,8 +56,7 @@ if __name__ == '__main__':
             user32.GetWindowThreadProcessId(hwnd, pointer(window_pid))
             title = get_window_text(hwnd)
             if (pid == window_pid.value
-                    and title != 'MSCTFIME UI'
-                    and title != 'Default IME'):
+                    and title not in ignore):
                 return hwnd
             hwnd = user32.GetWindow(hwnd, c_uint(2))  # GW_HWNDNEXT
         return None
